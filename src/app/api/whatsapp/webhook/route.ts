@@ -215,7 +215,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ status: 'received' }, { status: 200 })
 }
 
-async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
+export async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
   if (!body.entry) return
 
   for (const entry of body.entry) {
@@ -349,7 +349,7 @@ function isValidStatusTransition(current: string, incoming: string): boolean {
   return ii > ci
 }
 
-async function handleStatusUpdate(status: {
+export async function handleStatusUpdate(status: {
   id: string
   status: string
   timestamp: string
@@ -557,16 +557,10 @@ async function handleReaction(
   }
 }
 
-async function processMessage(
+export async function processMessage(
   message: WhatsAppMessage,
   contact: { profile: { name: string }; wa_id: string },
-  // Tenancy. Resolved from the matched whatsapp_config row; every
-  // contact / conversation / message row created downstream is
-  // stamped with this so any member of the account can see it.
   accountId: string,
-  // Sender-of-record for inserts that need a NOT NULL user_id FK
-  // (contacts, conversations). Always the admin who saved the
-  // WhatsApp config; the choice is arbitrary post-017 but stable.
   configOwnerUserId: string,
   accessToken: string
 ) {

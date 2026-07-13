@@ -1,5 +1,4 @@
-import { sendTextMessage, sendTemplateMessage } from '@/lib/whatsapp/meta-api'
-import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
+import { resolveProvider, type ProviderConfig } from '@/lib/whatsapp/provider-resolver'
 import {
   engineSendInteractiveButtons,
   engineSendInteractiveList,
@@ -140,13 +139,29 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
     throw new Error('WhatsApp not configured for this account')
   }
 
-  const accessToken = decrypt(config.access_token)
+  const providerConfig: ProviderConfig = {
+    provider: config.provider as 'meta' | 'uazapi',
+    phone_number_id: config.phone_number_id,
+    access_token: config.access_token ? decrypt(config.access_token) : undefined,
+    uazapi_base_url: config.uazapi_base_url,
+    uazapi_instance_token: config.uazapi_instance_token ? decrypt(config.uazapi_instance_token) : undefined,
+  }
+
+  const provider = resolveProvider(providerConfig)
 
   const attempt = async (phone: string): Promise<string> => {
     if (input.kind === 'template') {
+      if (config.provider === 'uazapi') {
+        throw new Error('Templates are not supported with UAZAPI')
+      }
+      // Since template send is Meta-only and we dropped the import, we need to call it directly
+      // but to avoid re-importing just for this one file when we abstracted it, we can actually
+      // just realize that meta-send has it. Wait, the abstraction doesn't support templates yet.
+      // Let's import sendTemplateMessage again at the top.
+      const { sendTemplateMessage } = await import('@/lib/whatsapp/meta-api')
       const r = await sendTemplateMessage({
         phoneNumberId: config.phone_number_id,
-        accessToken,
+        accessToken: providerConfig.access_token!,
         to: phone,
         templateName: input.templateName,
         language: input.language,
@@ -154,9 +169,7 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
       })
       return r.messageId
     }
-    const r = await sendTextMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const r = await provider.sendText({
       to: phone,
       text: input.text,
     })
@@ -166,7 +179,7 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
   // Same phone-variant retry as /api/whatsapp/send — Meta sandbox and
   // numbers registered with/without a trunk 0 both require this to
   // reliably land a message.
-  const variants = phoneVariants(sanitized)
+  const variants = config.provider === 'uazapi' ? [sanitized] : phoneVariants(sanitized)
   let workingPhone = sanitized
   let waMessageId = ''
   let lastError: unknown = null

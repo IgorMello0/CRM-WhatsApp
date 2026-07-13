@@ -7,6 +7,7 @@ import {
   type InteractiveListSection,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api'
+import { resolveProvider, type ProviderConfig } from '@/lib/whatsapp/provider-resolver'
 import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
@@ -91,19 +92,25 @@ export async function engineSendText(
     throw new Error('WhatsApp not configured for this account')
   }
 
-  const accessToken = decrypt(config.access_token)
+  const providerConfig: ProviderConfig = {
+    provider: config.provider as 'meta' | 'uazapi',
+    phone_number_id: config.phone_number_id,
+    access_token: config.access_token ? decrypt(config.access_token) : undefined,
+    uazapi_base_url: config.uazapi_base_url,
+    uazapi_instance_token: config.uazapi_instance_token ? decrypt(config.uazapi_instance_token) : undefined,
+  }
+
+  const provider = resolveProvider(providerConfig)
 
   const attempt = async (phone: string): Promise<string> => {
-    const r = await sendTextMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const r = await provider.sendText({
       to: phone,
       text: args.text,
     })
     return r.messageId
   }
 
-  const variants = phoneVariants(sanitized)
+  const variants = config.provider === 'uazapi' ? [sanitized] : phoneVariants(sanitized)
   let workingPhone = sanitized
   let waMessageId = ''
   let lastError: unknown = null
@@ -201,12 +208,18 @@ export async function engineSendMedia(
     throw new Error('WhatsApp not configured for this account')
   }
 
-  const accessToken = decrypt(config.access_token)
+  const providerConfig: ProviderConfig = {
+    provider: config.provider as 'meta' | 'uazapi',
+    phone_number_id: config.phone_number_id,
+    access_token: config.access_token ? decrypt(config.access_token) : undefined,
+    uazapi_base_url: config.uazapi_base_url,
+    uazapi_instance_token: config.uazapi_instance_token ? decrypt(config.uazapi_instance_token) : undefined,
+  }
+
+  const provider = resolveProvider(providerConfig)
 
   const attempt = async (phone: string): Promise<string> => {
-    const r = await sendMediaMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const r = await provider.sendMedia({
       to: phone,
       kind: args.kind,
       link: args.link,
@@ -216,7 +229,7 @@ export async function engineSendMedia(
     return r.messageId
   }
 
-  const variants = phoneVariants(sanitized)
+  const variants = config.provider === 'uazapi' ? [sanitized] : phoneVariants(sanitized)
   let workingPhone = sanitized
   let waMessageId = ''
   let lastError: unknown = null
@@ -353,9 +366,12 @@ async function sendInteractiveViaMeta(
     throw new Error('WhatsApp not configured for this account')
   }
 
-  const accessToken = decrypt(config.access_token)
-
   const attempt = async (phone: string): Promise<string> => {
+    if (config.provider === 'uazapi') {
+      throw new Error('Interactive messages are not supported with UAZAPI')
+    }
+    const accessToken = decrypt(config.access_token)
+
     if (input.kind === 'buttons') {
       const r = await sendInteractiveButtons({
         phoneNumberId: config.phone_number_id,
@@ -384,7 +400,7 @@ async function sendInteractiveViaMeta(
   // Same phone-variant retry as automations/meta-send.ts. Numbers
   // registered with/without a trunk 0 + Meta's sandbox quirks all
   // need this to reliably land a message.
-  const variants = phoneVariants(sanitized)
+  const variants = config.provider === 'uazapi' ? [sanitized] : phoneVariants(sanitized)
   let workingPhone = sanitized
   let waMessageId = ''
   let lastError: unknown = null

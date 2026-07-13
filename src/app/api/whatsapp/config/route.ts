@@ -6,6 +6,7 @@ import {
   subscribeWabaToApp,
   verifyPhoneNumber,
 } from '@/lib/whatsapp/meta-api'
+import { uazapiGetStatus } from '@/lib/whatsapp/uazapi-api'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 
 /**
@@ -87,7 +88,7 @@ export async function GET() {
 
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')
-      .select('phone_number_id, access_token, status')
+      .select('phone_number_id, access_token, status, provider, uazapi_base_url, uazapi_instance_token')
       .eq('account_id', accountId)
       .maybeSingle()
 
@@ -110,6 +111,61 @@ export async function GET() {
       )
     }
 
+    // ── UAZAPI provider path ──────────────────────────────────
+    if (config.provider === 'uazapi') {
+      if (!config.uazapi_base_url || !config.uazapi_instance_token) {
+        return NextResponse.json(
+          {
+            connected: false,
+            reason: 'no_config',
+            message: 'UAZAPI credentials are incomplete. Please re-save your configuration.',
+          },
+          { status: 200 },
+        )
+      }
+
+      let instanceToken: string
+      try {
+        instanceToken = decrypt(config.uazapi_instance_token)
+      } catch (err) {
+        console.error('[whatsapp/config GET] UAZAPI token decryption failed:', err)
+        return NextResponse.json(
+          {
+            connected: false,
+            reason: 'token_corrupted',
+            needs_reset: true,
+            message:
+              'The stored UAZAPI token cannot be decrypted with the current ENCRYPTION_KEY. Click "Reset Configuration" below, then re-save.',
+          },
+          { status: 200 },
+        )
+      }
+
+      try {
+        const result = await uazapiGetStatus({
+          baseUrl: config.uazapi_base_url,
+          instanceToken,
+        })
+        return NextResponse.json({
+          connected: result.status === 'connected',
+          provider: 'uazapi',
+          uazapi_status: result.status,
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown UAZAPI error'
+        console.error('[whatsapp/config GET] UAZAPI status check failed:', message)
+        return NextResponse.json(
+          {
+            connected: false,
+            reason: 'uazapi_error',
+            message: `UAZAPI rejected the credentials: ${message}`,
+          },
+          { status: 200 },
+        )
+      }
+    }
+
+    // ── Meta provider path (default) ─────────────────────────
     // Try to decrypt the stored token with the current ENCRYPTION_KEY.
     // If this fails, the key changed (or was never consistent across envs).
     let accessToken: string
@@ -185,8 +241,147 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { phone_number_id, waba_id, access_token, verify_token, pin } = body
+    const {
+      phone_number_id,
+      waba_id,
+      access_token,
+      verify_token,
+      pin,
+      provider: rawProvider,
+      uazapi_base_url,
+      uazapi_instance_token,
+    } = body
 
+    // Default to 'meta' for backward compatibility with existing callers.
+    const provider: string = rawProvider || 'meta'
+
+    // ── UAZAPI provider path ──────────────────────────────────
+    if (provider === 'uazapi') {
+      if (!uazapi_base_url) {
+        return NextResponse.json(
+          { error: 'uazapi_base_url is required for UAZAPI provider' },
+          { status: 400 },
+        )
+      }
+
+      // Check for an existing row to decide insert vs update, and retrieve old token.
+      const { data: existing } = await supabase
+        .from('whatsapp_config')
+        .select('id, uazapi_instance_token')
+        .eq('account_id', accountId)
+        .maybeSingle()
+
+      let finalInstanceToken = uazapi_instance_token;
+      if (!finalInstanceToken) {
+        if (existing?.uazapi_instance_token) {
+          try {
+            finalInstanceToken = decrypt(existing.uazapi_instance_token)
+          } catch {
+            return NextResponse.json(
+              { error: 'Existing UAZAPI token is corrupted. Please re-enter it.' },
+              { status: 400 },
+            )
+          }
+        } else {
+          return NextResponse.json(
+            { error: 'uazapi_instance_token is required for initial UAZAPI setup' },
+            { status: 400 },
+          )
+        }
+      }
+
+      // Verify connectivity before saving
+      let uazapiStatus: Awaited<ReturnType<typeof uazapiGetStatus>>
+      try {
+        uazapiStatus = await uazapiGetStatus({
+          baseUrl: uazapi_base_url,
+          instanceToken: finalInstanceToken,
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown UAZAPI error'
+        console.error('UAZAPI connectivity check failed during save:', message)
+        return NextResponse.json(
+          { error: `UAZAPI error: ${message}` },
+          { status: 400 },
+        )
+      }
+
+      // Encrypt the instance token before storing
+      let encryptedInstanceToken: string
+      try {
+        encryptedInstanceToken = encrypt(finalInstanceToken)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown encryption error'
+        console.error('Encryption failed:', message)
+        return NextResponse.json(
+          {
+            error:
+              'Failed to encrypt token. Check that ENCRYPTION_KEY is a valid 64-character hex string in your environment variables.',
+          },
+          { status: 500 },
+        )
+      }
+
+      const isConnected = uazapiStatus.status === 'connected'
+
+      const uazapiRow = {
+        provider: 'uazapi' as const,
+        uazapi_base_url,
+        uazapi_instance_token: encryptedInstanceToken,
+        // Clear Meta-specific fields so they don't linger from a
+        // previous provider switch.
+        phone_number_id: null,
+        access_token: null,
+        waba_id: null,
+        verify_token: null,
+        status: isConnected ? 'connected' : 'disconnected',
+        connected_at: isConnected ? new Date().toISOString() : null,
+        registered_at: null,
+        subscribed_apps_at: null,
+        last_registration_error: null,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (existing) {
+        const { error: updateError } = await supabase
+          .from('whatsapp_config')
+          .update(uazapiRow)
+          .eq('account_id', accountId)
+
+        if (updateError) {
+          console.error('Error updating whatsapp_config (UAZAPI):', updateError)
+          return NextResponse.json(
+            { error: 'Failed to update configuration' },
+            { status: 500 },
+          )
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from('whatsapp_config')
+          .insert({
+            account_id: accountId,
+            user_id: user.id,
+            ...uazapiRow,
+          })
+
+        if (insertError) {
+          console.error('Error inserting whatsapp_config (UAZAPI):', insertError)
+          return NextResponse.json(
+            { error: 'Failed to save configuration' },
+            { status: 500 },
+          )
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        saved: true,
+        provider: 'uazapi',
+        uazapi_status: uazapiStatus.status,
+      })
+    }
+
+    // ── Meta provider path (default) ─────────────────────────
     if (!access_token || !phone_number_id) {
       return NextResponse.json(
         { error: 'access_token and phone_number_id are required' },
@@ -354,10 +549,14 @@ export async function POST(request: Request) {
     // store the credentials and the error so the UI can guide the
     // user through a retry.
     const baseRow = {
+      provider: 'meta' as const,
       phone_number_id,
       waba_id: waba_id || null,
       access_token: encryptedAccessToken,
       verify_token: encryptedVerifyToken,
+      // Clear UAZAPI-specific fields in case the user switched providers.
+      uazapi_base_url: null,
+      uazapi_instance_token: null,
       status: registrationError ? 'disconnected' : 'connected',
       connected_at: registrationError ? null : new Date().toISOString(),
       registered_at: registrationError ? null : registeredAt,

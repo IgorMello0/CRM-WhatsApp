@@ -29,6 +29,8 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from '@/components/ui/accordion';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { UazapiQrDialog } from './uazapi-qr-dialog';
 import type { WhatsAppConfig as WhatsAppConfigType } from '@/types';
 
 const MASKED_TOKEN = '••••••••••••••••';
@@ -69,6 +71,13 @@ export function WhatsAppConfig() {
   const [verifyToken, setVerifyToken] = useState('');
   const [pin, setPin] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
+
+  // New states for provider selection and UAZAPI
+  const [provider, setProvider] = useState<'meta' | 'uazapi'>('meta');
+  const [uazapiBaseUrl, setUazapiBaseUrl] = useState('');
+  const [uazapiInstanceToken, setUazapiInstanceToken] = useState('');
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrData, setQrData] = useState<{ qrcode?: string; pairingCode?: string } | null>(null);
 
   // True once /register has succeeded on Meta's side (timestamp set
   // in the row). When false, the saved config is metadata-only and
@@ -115,14 +124,20 @@ export function WhatsAppConfig() {
 
       if (data) {
         setConfig(data);
+        setProvider(data.provider || 'meta');
+        setUazapiBaseUrl(data.uazapi_base_url || '');
+        setUazapiInstanceToken(data.uazapi_instance_token ? MASKED_TOKEN : '');
         setPhoneNumberId(data.phone_number_id || '');
         setWabaId(data.waba_id || '');
-        setAccessToken(MASKED_TOKEN);
+        setAccessToken(data.access_token ? MASKED_TOKEN : '');
         setVerifyToken('');
         setPin('');
         setTokenEdited(false);
       } else {
         setConfig(null);
+        setProvider('meta');
+        setUazapiBaseUrl('');
+        setUazapiInstanceToken('');
         setPhoneNumberId('');
         setWabaId('');
         setAccessToken('');
@@ -182,43 +197,50 @@ export function WhatsAppConfig() {
     fetchConfig(accountId);
   }, [authLoading, profileLoading, user?.id, accountId, fetchConfig]);
 
-  async function handleSave() {
-    if (!phoneNumberId.trim()) {
-      toast.error('Phone Number ID is required');
-      return;
-    }
-    if (!config && (!accessToken.trim() || !tokenEdited)) {
-      toast.error('Access Token is required for initial setup');
-      return;
+  async function handleSave(): Promise<boolean> {
+    if (provider === 'meta') {
+      if (!phoneNumberId.trim()) {
+        toast.error('Phone Number ID is required');
+        return false;
+      }
+      if (!config && (!accessToken.trim() || !tokenEdited)) {
+        toast.error('Access Token is required for initial setup');
+        return false;
+      }
+    } else {
+      if (!uazapiBaseUrl.trim() || (!config?.uazapi_instance_token && !uazapiInstanceToken.trim())) {
+        toast.error('Base URL and Instance Token are required for UAZAPI');
+        return false;
+      }
     }
 
     try {
       setSaving(true);
 
-      // Always POST through the API — it verifies with Meta and encrypts
-      // the access_token server-side with ENCRYPTION_KEY. Skipping this
-      // and writing direct to Supabase stores the token in plaintext,
-      // which then fails decryption on every subsequent health check.
       const payload: Record<string, unknown> = {
-        phone_number_id: phoneNumberId.trim(),
-        waba_id: wabaId.trim() || null,
-        verify_token: verifyToken.trim() || null,
-        // Optional — only sent when the user filled it in. The server
-        // requires it on first save or when changing numbers; for a
-        // simple token rotation, leaving it blank skips re-register.
-        pin: pin.trim() || null,
+        provider,
       };
 
-      if (tokenEdited && accessToken !== MASKED_TOKEN && accessToken.trim()) {
-        payload.access_token = accessToken.trim();
-      } else if (config) {
-        // Existing config — reuse stored encrypted token by decrypting on the
-        // server. But our POST handler requires an access_token to verify
-        // with Meta. If the user didn't change the token, we need to signal
-        // that. Simplest: require token re-entry if they're updating.
-        toast.error('Please re-enter the Access Token to save changes');
-        setSaving(false);
-        return;
+      if (provider === 'meta') {
+        payload.phone_number_id = phoneNumberId.trim();
+        payload.waba_id = wabaId.trim() || null;
+        payload.verify_token = verifyToken.trim() || null;
+        payload.pin = pin.trim() || null;
+
+        if (tokenEdited && accessToken !== MASKED_TOKEN && accessToken.trim()) {
+          payload.access_token = accessToken.trim();
+        } else if (config) {
+          if (!config.access_token) {
+            toast.error('Please re-enter the Access Token to save changes');
+            setSaving(false);
+            return;
+          }
+        }
+      } else {
+        payload.uazapi_base_url = uazapiBaseUrl.trim();
+        if (uazapiInstanceToken !== MASKED_TOKEN && uazapiInstanceToken.trim()) {
+          payload.uazapi_instance_token = uazapiInstanceToken.trim();
+        }
       }
 
       const res = await fetch('/api/whatsapp/config', {
@@ -232,16 +254,17 @@ export function WhatsAppConfig() {
       if (!res.ok) {
         toast.error(data.error || 'Failed to save configuration');
         setSaving(false);
-        return;
+        return false;
       }
 
       // The route now returns a structured outcome:
-      //   * registered=true   → number is live, events will flow
-      //   * registered=false  → credentials saved but /register
-      //                         failed; UI shows the specific error
-      //                         and a retry path. registration_error
-      //                         is human-readable from Meta.
-      if (data.registered === false && data.registration_error) {
+      if (provider === 'uazapi') {
+        toast.success(
+          data.connected 
+            ? 'UAZAPI configured and connected!' 
+            : 'UAZAPI configuration saved. Connect via QR Code to activate.'
+        );
+      } else if (data.registered === false && data.registration_error) {
         toast.error(
           `Saved, but Meta couldn't register the number: ${data.registration_error}`,
           { duration: 12000 },
@@ -269,9 +292,11 @@ export function WhatsAppConfig() {
       }
 
       if (accountId) await fetchConfig(accountId);
+      return true;
     } catch (err) {
       console.error('Save error:', err);
       toast.error('Failed to save configuration');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -366,6 +391,36 @@ export function WhatsAppConfig() {
     }
   }
 
+  async function handleUazapiConnect() {
+    if (!uazapiBaseUrl.trim() || (!config?.uazapi_instance_token && !uazapiInstanceToken.trim())) {
+      toast.error('Base URL and Instance Token are required');
+      return;
+    }
+    
+    // Auto-save the config first before generating QR
+    const saved = await handleSave();
+    if (!saved) return;
+
+    try {
+      setTesting(true);
+      const res = await fetch('/api/whatsapp/uazapi/connect', { method: 'POST' });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to generate QR Code');
+        return;
+      }
+
+      setQrData({ qrcode: data.qrcode, pairingCode: data.pairingCode });
+      setQrDialogOpen(true);
+    } catch (err) {
+      console.error('UAZAPI connect error:', err);
+      toast.error('Failed to generate QR Code');
+    } finally {
+      setTesting(false);
+    }
+  }
+
   function handleCopyWebhookUrl() {
     navigator.clipboard.writeText(webhookUrl);
     toast.success('Webhook URL copied to clipboard');
@@ -396,6 +451,32 @@ export function WhatsAppConfig() {
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       {/* Main config form */}
       <div className="space-y-6">
+        
+        <Card className="border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Provider Selection</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Choose how you want to connect to WhatsApp.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup 
+              value={provider} 
+              onValueChange={(val) => setProvider(val as 'meta' | 'uazapi')}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-muted/50" onClick={() => setProvider('meta')}>
+                <RadioGroupItem value="meta" id="provider-meta" />
+                <Label htmlFor="provider-meta" className="cursor-pointer font-medium">Meta (Official API)</Label>
+              </div>
+              <div className="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-muted/50" onClick={() => setProvider('uazapi')}>
+                <RadioGroupItem value="uazapi" id="provider-uazapi" />
+                <Label htmlFor="provider-uazapi" className="cursor-pointer font-medium">UAZAPI (QR Code)</Label>
+              </div>
+            </RadioGroup>
+          </CardContent>
+        </Card>
+
         {/* Corrupted-token reset banner */}
         {showResetBanner && (
           <Alert className="bg-amber-950/40 border-amber-600/40">
@@ -554,9 +635,11 @@ export function WhatsAppConfig() {
           </Alert>
         )}
 
-        {/* API Credentials */}
-        <Card>
-          <CardHeader>
+        {provider === 'meta' ? (
+          <>
+            {/* API Credentials */}
+            <Card>
+              <CardHeader>
             <CardTitle className="text-foreground">{t('apiCredentialsTitle')}</CardTitle>
             <CardDescription className="text-muted-foreground">
               {t('apiCredentialsDesc')}
@@ -682,6 +765,68 @@ export function WhatsAppConfig() {
             </div>
           </CardContent>
         </Card>
+        </>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">UAZAPI Credentials</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Connect via QR Code using the UAZAPI unofficial provider.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Instance URL</Label>
+                <Input
+                  placeholder="e.g. https://free.uazapi.com"
+                  value={uazapiBaseUrl}
+                  onChange={(e) => setUazapiBaseUrl(e.target.value)}
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Instance Token</Label>
+                <div className="relative">
+                  <Input
+                    type={showToken ? 'text' : 'password'}
+                    placeholder="Enter your instance token"
+                    value={uazapiInstanceToken}
+                    onChange={(e) => setUazapiInstanceToken(e.target.value)}
+                    onFocus={() => {
+                      if (uazapiInstanceToken === MASKED_TOKEN) {
+                        setUazapiInstanceToken('');
+                      }
+                    }}
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleUazapiConnect} 
+                disabled={testing || saving || !uazapiBaseUrl || !uazapiInstanceToken}
+                className="w-full mt-2"
+              >
+                {testing ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                    Generating QR Code...
+                  </>
+                ) : (
+                  <>Connect via QR Code</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
@@ -835,6 +980,16 @@ export function WhatsAppConfig() {
         </Card>
       </div>
     </div>
+    <UazapiQrDialog 
+        open={qrDialogOpen} 
+        onOpenChange={setQrDialogOpen}
+        qrcodeStr={qrData?.qrcode}
+        pairingCode={qrData?.pairingCode}
+        onConnected={() => {
+          setConnectionStatus('connected');
+          if (accountId) fetchConfig(accountId);
+        }}
+      />
     </section>
   );
 }

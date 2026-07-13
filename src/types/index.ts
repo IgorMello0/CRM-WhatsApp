@@ -285,6 +285,12 @@ export interface WhatsAppConfig {
   subscribed_apps_at?: string;
   /** Last error from /register; cleared on success. */
   last_registration_error?: string;
+  /** WhatsApp provider: 'meta' (official Cloud API) or 'uazapi' (unofficial). */
+  provider: 'meta' | 'uazapi';
+  /** UAZAPI-only fields — null when provider is 'meta'. */
+  uazapi_base_url?: string;
+  uazapi_instance_token?: string;
+  uazapi_instance_id?: string;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

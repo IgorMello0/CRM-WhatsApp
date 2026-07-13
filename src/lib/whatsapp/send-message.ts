@@ -22,13 +22,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  sendTextMessage,
   sendTemplateMessage,
-  sendMediaMessage,
   sendInteractiveButtons,
   sendInteractiveList,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api';
+import { resolveProvider, type ProviderConfig } from '@/lib/whatsapp/provider-resolver';
 import {
   validateInteractivePayload,
   interactivePayloadPreviewText,
@@ -262,10 +261,10 @@ export async function sendMessageToConversation(
     );
   }
 
-  const accessToken = decrypt(config.access_token);
+  const accessToken = config.access_token ? decrypt(config.access_token) : '';
 
   // Self-heal legacy CBC ciphertexts. Fire-and-forget; idempotent.
-  if (isLegacyFormat(config.access_token)) {
+  if (config.access_token && isLegacyFormat(config.access_token)) {
     void db
       .from('whatsapp_config')
       .update({ access_token: encrypt(accessToken) })
@@ -329,8 +328,21 @@ export async function sendMessageToConversation(
     templateRow = data ?? null;
   }
 
+  const providerConfig: ProviderConfig = {
+    provider: config.provider as 'meta' | 'uazapi',
+    phone_number_id: config.phone_number_id,
+    access_token: config.access_token ? accessToken : undefined,
+    uazapi_base_url: config.uazapi_base_url,
+    uazapi_instance_token: config.uazapi_instance_token ? decrypt(config.uazapi_instance_token) : undefined,
+  };
+
+  const provider = resolveProvider(providerConfig);
+
   const attempt = async (phone: string): Promise<string> => {
     if (messageType === 'template') {
+      if (config.provider === 'uazapi') {
+        throw new SendMessageError('unsupported', 'Templates are not supported with UAZAPI', 400);
+      }
       const result = await sendTemplateMessage({
         phoneNumberId: config.phone_number_id,
         accessToken,
@@ -345,9 +357,7 @@ export async function sendMessageToConversation(
       return result.messageId;
     }
     if (isMediaKind) {
-      const result = await sendMediaMessage({
-        phoneNumberId: config.phone_number_id,
-        accessToken,
+      const result = await provider.sendMedia({
         to: phone,
         kind: messageType as MediaKind,
         link: mediaUrl!,
@@ -358,6 +368,9 @@ export async function sendMessageToConversation(
       return result.messageId;
     }
     if (messageType === 'interactive') {
+      if (config.provider === 'uazapi') {
+        throw new SendMessageError('unsupported', 'Interactive messages are not supported with UAZAPI', 400);
+      }
       const p = interactivePayload!;
       if (p.kind === 'buttons') {
         const result = await sendInteractiveButtons({
@@ -385,9 +398,7 @@ export async function sendMessageToConversation(
       });
       return result.messageId;
     }
-    const result = await sendTextMessage({
-      phoneNumberId: config.phone_number_id,
-      accessToken,
+    const result = await provider.sendText({
       to: phone,
       text: contentText!,
       contextMessageId,
@@ -401,7 +412,7 @@ export async function sendMessageToConversation(
   let waMessageId = '';
   let workingPhone = sanitizedPhone;
   try {
-    const variants = phoneVariants(sanitizedPhone);
+    const variants = config.provider === 'uazapi' ? [sanitizedPhone] : phoneVariants(sanitizedPhone);
     let lastError: unknown = null;
 
     for (const variant of variants) {
