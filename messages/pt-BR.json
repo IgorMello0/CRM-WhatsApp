@@ -971,8 +971,8 @@
         },
         "placeholderTime": "HH:mm-HH:mm",
         "placeholderMessageText": "Oi! Obrigado por entrar em contato…",
-        "placeholderBody": "{\"id\": \"'{{ contact.id }}'\"}",
-        "placeholderHeaders": "{\"Authorization\": \"Bearer ...\"}",
+        "placeholderBody": "'{'\"id\": \"'{{ contact.id }}'\"'}'",
+        "placeholderHeaders": "'{'\"Authorization\": \"Bearer ...\"'}'",
         "placeholderValue": "Texto ou '{{ vars.x }}' / '{{ message.text }}'",
         "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária."
       }
@@ -1059,7 +1059,7 @@
       "triggerFirstInboundTitle": "A primeira mensagem recebida do cliente",
       "entryNodeTitle": "Nó de entrada:",
       "keywordsPlaceholder": "suporte, ajuda, oi",
-      "nodesEmpty": "Adicione um nó <strong>Iniciar</strong>, depois um nó <strong>Botões Enviar</strong> e, em seguida, um nó <strong>Handoff</strong> — esse é o formato do menu de boas-vindas do briefing.",
+      "nodesEmpty": "Adicione um nó '<strong class=\"text-foreground\">'Iniciar'</strong>', depois um nó '<strong class=\"text-foreground\">'Botões Enviar'</strong>' e, em seguida, um nó '<strong class=\"text-foreground\">'Handoff'</strong>' — esse é o formato do menu de boas-vindas do briefing.",
       "listView": "Lista",
       "removeNode": "Remover nó",
       "hideAdvanced": "Ocultar avançado",
@@ -1490,7 +1490,7 @@
       "step4_4": "Insira o mesmo '<strong class=\"text-foreground\">'Token de verificação'</strong>' que você definiu aqui",
       "step5": "Ativar CoEx (Opcional)",
       "step5_1": "CoEx (Coexistência) permite usar o app WhatsApp Business no celular e este CRM simultaneamente no mesmo número.",
-      "step5_2": "No painel de Apps da Meta, certifique-se de ter se inscrito no campo <strong class=\"text-foreground\">smb_message_echoes</strong> do webhook (passo 4).",
+      "step5_2": "In the Meta App Dashboard, ensure you subscribed to the '<strong className=\"text-foreground\">'smb_message_echoes'</strong>' webhook field (step 4).",
       "step5_3": "Mensagens que você enviar pelo celular aparecerão automaticamente na caixa de entrada do CRM.",
       "step5_4": "Nenhuma configuração extra é necessária — o sistema detecta os ecos automaticamente e os salva sem disparar automações ou IA.",
       "metaDocs": "Documentação da API Meta WhatsApp"
