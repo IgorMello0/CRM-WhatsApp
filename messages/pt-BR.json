@@ -1575,7 +1575,7 @@
     "apiKeys": {
       "title": "Chaves de API",
       "askAdminHint": "Peça a um administrador para criar um.",
-      "description": "As chaves autenticam a API REST pública (<apiCode>/api/v1</apiCode>) para que você possa criar suas próprias automações. Envie-os como <headerCode>Authorization: Bearer <key></headerCode>.",
+      "description": "As chaves autenticam a API REST pública (<apiCode>/api/v1</apiCode>) para que você possa criar suas próprias automações. Envie-as como <headerCode>Authorization: Bearer &lt;key&gt;</headerCode>.",
       "createOneHint": "Clique em <bold>Nova chave de API</bold> para criar uma.",
       "revoked": "Revogado",
       "expired": "Expirado",
@@ -1586,7 +1586,7 @@
       "nameRequired": "Dê um nome à chave",
       "revoke": "Revogar",
       "scopesLabel": "Escopos",
-      "scopesHint": "Uma chave sem escopos ainda pode chamar <code className=\"text-[11px]\">GET /api/v1/me</code> para verificar se funciona.",
+      "scopesHint": "Uma chave sem escopos ainda pode chamar <code>GET /api/v1/me</code> para verificar se funciona.",
       "cancel": "Cancelar",
       "copyTitle": "Copie sua chave de API",
       "apiKeyLabel": "Chave de API",
