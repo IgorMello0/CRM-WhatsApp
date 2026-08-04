@@ -516,7 +516,7 @@ export function WhatsAppConfig() {
           <AlertDescription className="text-muted-foreground">
             {connectionStatus === 'connected'
               ? t('connectedDesc')
-              : statusMessage ||
+              : (config?.provider === provider ? statusMessage : null) ||
                 t('notConnectedDesc')}
           </AlertDescription>
         </Alert>

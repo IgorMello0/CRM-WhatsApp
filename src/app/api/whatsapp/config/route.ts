@@ -154,13 +154,16 @@ export async function GET() {
           uazapi_status: result.status,
         })
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown UAZAPI error'
-        console.error('[whatsapp/config GET] UAZAPI status check failed:', message)
+        const rawMessage = err instanceof Error ? err.message : 'Unknown UAZAPI error'
+        console.error('[whatsapp/config GET] UAZAPI status check failed:', rawMessage)
+        const friendlyMessage = rawMessage.includes('401') || rawMessage.includes('Invalid token')
+          ? 'O token de instância da UAZAPI é inválido ou a instância não foi encontrada.'
+          : `Falha ao conectar com a UAZAPI: ${rawMessage}`
         return NextResponse.json(
           {
             connected: false,
             reason: 'uazapi_error',
-            message: `UAZAPI rejected the credentials: ${message}`,
+            message: friendlyMessage,
           },
           { status: 200 },
         )
