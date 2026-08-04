@@ -208,10 +208,7 @@ export function WhatsAppConfig() {
         return false;
       }
     } else {
-      if (!uazapiBaseUrl.trim() || (!config?.uazapi_instance_token && !uazapiInstanceToken.trim())) {
-        toast.error('Base URL and Instance Token are required for UAZAPI');
-        return false;
-      }
+      // For UAZAPI, no manual inputs are required, the backend provisions it.
     }
 
     try {
@@ -237,10 +234,7 @@ export function WhatsAppConfig() {
           }
         }
       } else {
-        payload.uazapi_base_url = uazapiBaseUrl.trim();
-        if (uazapiInstanceToken !== MASKED_TOKEN && uazapiInstanceToken.trim()) {
-          payload.uazapi_instance_token = uazapiInstanceToken.trim();
-        }
+        // No payload needed, backend will read env vars and provision
       }
 
       const res = await fetch('/api/whatsapp/config', {
@@ -392,11 +386,6 @@ export function WhatsAppConfig() {
   }
 
   async function handleUazapiConnect() {
-    if (!uazapiBaseUrl.trim() || (!config?.uazapi_instance_token && !uazapiInstanceToken.trim())) {
-      toast.error('Base URL and Instance Token are required');
-      return;
-    }
-    
     // Auto-save the config first before generating QR
     const saved = await handleSave();
     if (!saved) return;
@@ -775,44 +764,9 @@ export function WhatsAppConfig() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Instance URL</Label>
-                <Input
-                  placeholder="e.g. https://free.uazapi.com"
-                  value={uazapiBaseUrl}
-                  onChange={(e) => setUazapiBaseUrl(e.target.value)}
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Instance Token</Label>
-                <div className="relative">
-                  <Input
-                    type={showToken ? 'text' : 'password'}
-                    placeholder="Enter your instance token"
-                    value={uazapiInstanceToken}
-                    onChange={(e) => setUazapiInstanceToken(e.target.value)}
-                    onFocus={() => {
-                      if (uazapiInstanceToken === MASKED_TOKEN) {
-                        setUazapiInstanceToken('');
-                      }
-                    }}
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowToken(!showToken)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-
               <Button 
                 onClick={handleUazapiConnect} 
-                disabled={testing || saving || !uazapiBaseUrl || !uazapiInstanceToken}
+                disabled={testing || saving}
                 className="w-full mt-2"
               >
                 {testing ? (
@@ -960,6 +914,23 @@ export function WhatsAppConfig() {
                     <li dangerouslySetInnerHTML={{ __html: t('step4_3') }} />
                     <li dangerouslySetInnerHTML={{ __html: t('step4_4') }} />
                     <li>{t('step4_5')}</li>
+                  </ol>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem className="border-border">
+                <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">5</span>
+                    {t('step5')}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                    <li>{t('step5_1')}</li>
+                    <li dangerouslySetInnerHTML={{ __html: t('step5_2') }} />
+                    <li>{t('step5_3')}</li>
+                    <li>{t('step5_4')}</li>
                   </ol>
                 </AccordionContent>
               </AccordionItem>

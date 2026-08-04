@@ -358,6 +358,7 @@
         "notes": "Notes",
         "custom": "Custom Fields",
         "deals": "Deals",
+        "tags": "Tags",
       "noTags": "No tags",
       "noDeals": "No deals",
       "addNotePlaceholder": "Add a note..."
@@ -1490,7 +1491,12 @@
       "step4_2": "Click \"Edit\" on the Webhook section",
       "step4_3": "Paste the '<strong class=\"text-foreground\">'Webhook Callback URL'</strong>' from above",
       "step4_4": "Enter the same '<strong class=\"text-foreground\">'Verify Token'</strong>' you set here",
-      "step4_5": "Subscribe to \"messages\" webhook field",
+      "step4_5": "Subscribe to \"messages\" and \"smb_message_echoes\" webhook fields",
+      "step5": "Enable CoEx (Optional)",
+      "step5_1": "CoEx (Coexistence) lets you use the WhatsApp Business mobile app and this CRM simultaneously on the same number.",
+      "step5_2": "In the Meta App Dashboard, ensure you subscribed to the <strong class=\"text-foreground\">smb_message_echoes</strong> webhook field (step 4).",
+      "step5_3": "Messages you send from the mobile app will automatically appear in the CRM inbox.",
+      "step5_4": "No extra configuration needed — the system detects echo messages and saves them without triggering automations or AI.",
       "metaDocs": "Meta WhatsApp API Documentation"
     },
     "sections": {

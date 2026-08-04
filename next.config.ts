@@ -63,7 +63,17 @@ const SECURITY_HEADERS = [
   },
 ] as const;
 
+import fs from "fs";
+
+const canonicalCwd = typeof fs.realpathSync.native === "function"
+  ? fs.realpathSync.native(process.cwd())
+  : fs.realpathSync(process.cwd());
+
 const nextConfig: NextConfig = {
+  webpack(config) {
+    config.context = canonicalCwd;
+    return config;
+  },
   /**
    * Cache-Control policy.
    *

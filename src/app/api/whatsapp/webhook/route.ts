@@ -36,6 +36,8 @@ function supabaseAdmin() {
 interface WhatsAppMessage {
   id: string
   from: string
+  /** Present on CoEx echo messages — the recipient's phone number. */
+  to?: string
   timestamp: string
   type: string
   text?: { body: string }
@@ -75,6 +77,8 @@ interface WhatsAppWebhookEntry {
         wa_id: string
       }>
       messages?: WhatsAppMessage[]
+      /** CoEx echo messages — sent from the WhatsApp Business mobile app. */
+      message_echoes?: WhatsAppMessage[]
       statuses?: Array<{
         id: string
         status: string
@@ -233,6 +237,33 @@ export async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
         continue
       }
 
+      // ── CoEx: handle smb_message_echoes ──────────────────────────
+      // When Coexistence is enabled, messages sent from the WhatsApp
+      // Business mobile app arrive as `smb_message_echoes` events.
+      // We save them as outbound (sender_type = 'user') so the CRM
+      // inbox stays perfectly in sync with the phone, WITHOUT
+      // triggering automations, flows, or AI replies.
+      if (change.field === 'smb_message_echoes') {
+        const echoMessages = change.value.message_echoes
+        if (!echoMessages || echoMessages.length === 0) continue
+
+        const phoneNumberId = change.value.metadata.phone_number_id
+        const echoConfig = await resolveConfigByPhoneNumberId(phoneNumberId)
+        if (!echoConfig) continue
+
+        const echoAccessToken = decrypt(echoConfig.access_token)
+
+        for (const echo of echoMessages) {
+          await processEchoMessage(
+            echo,
+            echoConfig.account_id,
+            echoConfig.user_id,
+            echoAccessToken
+          )
+        }
+        continue
+      }
+
       const value = change.value
 
       // Handle status updates
@@ -246,43 +277,8 @@ export async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
       if (!value.messages || !value.contacts) continue
 
       const phoneNumberId = value.metadata.phone_number_id
-
-      // Find user's config by phone_number_id. `.single()` returns
-      // PGRST116 for both 0 rows AND ≥2 rows — distinguish them so
-      // operators see the real cause in logs. ≥2 rows shouldn't happen
-      // post-migration 013 (UNIQUE constraint), but a row created
-      // before the constraint, or a race, would still surface here.
-      const { data: configRows, error: configError } = await supabaseAdmin()
-        .from('whatsapp_config')
-        .select('*')
-        .eq('phone_number_id', phoneNumberId)
-
-      if (configError) {
-        console.error(
-          'Error fetching whatsapp_config for phone_number_id:',
-          phoneNumberId,
-          configError
-        )
-        continue
-      }
-
-      if (!configRows || configRows.length === 0) {
-        console.error('No config found for phone_number_id:', phoneNumberId)
-        continue
-      }
-
-      if (configRows.length > 1) {
-        console.error(
-          `Multiple configs (${configRows.length}) found for phone_number_id:`,
-          phoneNumberId,
-          '— inbound message dropped. Resolve duplicates so each number maps to a single account.',
-          'Account owners:',
-          configRows.map((r: { account_id: string; user_id: string }) => `${r.account_id} (admin ${r.user_id})`)
-        )
-        continue
-      }
-
-      const config = configRows[0]
+      const config = await resolveConfigByPhoneNumberId(phoneNumberId)
+      if (!config) continue
 
       const decryptedAccessToken = decrypt(config.access_token)
 
@@ -305,6 +301,45 @@ export async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
       }
     }
   }
+}
+
+/**
+ * Look up the single whatsapp_config row for a phone_number_id.
+ * Returns null (with console.error) when not found or ambiguous.
+ * Shared by the inbound-messages branch and the CoEx echo branch.
+ */
+async function resolveConfigByPhoneNumberId(phoneNumberId: string) {
+  const { data: configRows, error: configError } = await supabaseAdmin()
+    .from('whatsapp_config')
+    .select('*')
+    .eq('phone_number_id', phoneNumberId)
+
+  if (configError) {
+    console.error(
+      'Error fetching whatsapp_config for phone_number_id:',
+      phoneNumberId,
+      configError
+    )
+    return null
+  }
+
+  if (!configRows || configRows.length === 0) {
+    console.error('No config found for phone_number_id:', phoneNumberId)
+    return null
+  }
+
+  if (configRows.length > 1) {
+    console.error(
+      `Multiple configs (${configRows.length}) found for phone_number_id:`,
+      phoneNumberId,
+      '— message dropped. Resolve duplicates so each number maps to a single account.',
+      'Account owners:',
+      configRows.map((r: { account_id: string; user_id: string }) => `${r.account_id} (admin ${r.user_id})`)
+    )
+    return null
+  }
+
+  return configRows[0]
 }
 
 // The happy-path status ladder — pending → sent → delivered → read →
@@ -817,6 +852,156 @@ export async function processMessage(
     whatsapp_message_id: message.id,
     content_type: contentType,
     text: contentText,
+  })
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CoEx: Process echo messages sent from the WhatsApp Business app
+// ════════════════════════════════════════════════════════════════════
+//
+// These are messages sent by the business user on the mobile app.
+// We save them as outbound (sender_type = 'user') so the CRM inbox
+// mirrors everything the team does from the phone. CRITICAL: we
+// intentionally skip ALL automation triggers, flows, and AI auto-reply
+// because this is not a customer message — it's the business talking.
+// ════════════════════════════════════════════════════════════════════
+async function processEchoMessage(
+  echo: WhatsAppMessage,
+  accountId: string,
+  configOwnerUserId: string,
+  accessToken: string
+) {
+  // The `to` field contains the recipient's (customer's) phone number.
+  // If it's somehow missing, we can't figure out which conversation
+  // this echo belongs to, so bail.
+  const recipientPhone = echo.to ? normalizePhone(echo.to) : null
+  if (!recipientPhone) {
+    console.warn('[webhook/coex] echo message missing `to` field, skipping:', echo.id)
+    return
+  }
+
+  // Look up the existing contact by phone number. Unlike inbound
+  // messages, we do NOT auto-create a contact for echoes — if the
+  // business is texting someone not in the CRM, the echo is simply
+  // dropped. This avoids phantom contacts from random outbound texts.
+  const { data: contactRecord } = await supabaseAdmin()
+    .from('contacts')
+    .select('id, name')
+    .eq('account_id', accountId)
+    .eq('phone', recipientPhone)
+    .maybeSingle()
+
+  if (!contactRecord) {
+    // Try with phonesMatch logic for trunk-prefix differences
+    const { data: allContacts } = await supabaseAdmin()
+      .from('contacts')
+      .select('id, name, phone')
+      .eq('account_id', accountId)
+
+    const fuzzyMatch = allContacts?.find((c: { phone: string }) => {
+      const normalized = normalizePhone(c.phone)
+      // Compare last 8+ digits to handle trunk prefix differences
+      if (normalized === recipientPhone) return true
+      if (normalized.length >= 8 && recipientPhone.length >= 8) {
+        return normalized.slice(-8) === recipientPhone.slice(-8)
+      }
+      return false
+    })
+
+    if (!fuzzyMatch) {
+      console.info(
+        '[webhook/coex] echo to unknown contact, skipping:',
+        recipientPhone
+      )
+      return
+    }
+
+    // Proceed with fuzzy-matched contact
+    return processEchoForContact(echo, fuzzyMatch.id, accountId, configOwnerUserId, accessToken)
+  }
+
+  await processEchoForContact(echo, contactRecord.id, accountId, configOwnerUserId, accessToken)
+}
+
+/**
+ * Inner handler once we've resolved the contact. Finds/creates the
+ * conversation and inserts the echo as an outbound message.
+ */
+async function processEchoForContact(
+  echo: WhatsAppMessage,
+  contactId: string,
+  accountId: string,
+  configOwnerUserId: string,
+  accessToken: string
+) {
+  // Find or create conversation for this contact
+  const convResult = await findOrCreateConversation(
+    accountId,
+    configOwnerUserId,
+    contactId
+  )
+  if (!convResult) return
+  const conversation = convResult.conversation
+
+  // Parse message content (text, media, etc.)
+  const { contentText, mediaUrl, mediaType } =
+    await parseMessageContent(echo, accessToken)
+  void mediaType
+
+  // Map content type
+  const ALLOWED_CONTENT_TYPES = new Set([
+    'text', 'image', 'document', 'audio', 'video',
+    'location', 'template', 'interactive',
+  ])
+  const contentType = ALLOWED_CONTENT_TYPES.has(echo.type)
+    ? echo.type
+    : echo.type === 'sticker'
+      ? 'image'
+      : 'text'
+
+  // Insert as outbound message (sender_type = 'user')
+  const { error: msgError } = await supabaseAdmin().from('messages').insert({
+    conversation_id: conversation.id,
+    sender_type: 'user',
+    content_type: contentType,
+    content_text: contentText,
+    media_url: mediaUrl,
+    message_id: echo.id,
+    status: 'sent',
+    created_at: new Date(parseInt(echo.timestamp) * 1000).toISOString(),
+  })
+
+  if (msgError) {
+    console.error('[webhook/coex] Error inserting echo message:', msgError)
+    return
+  }
+
+  // Update conversation metadata (last message, timestamp) but do NOT
+  // bump unread_count — this is the business's own message.
+  await supabaseAdmin()
+    .from('conversations')
+    .update({
+      last_message_text: contentText || `[${echo.type}]`,
+      last_message_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', conversation.id)
+
+  console.info(
+    '[webhook/coex] Saved echo message:',
+    echo.id,
+    '→ conversation:',
+    conversation.id
+  )
+
+  // Emit a webhook event so external subscribers know about the echo
+  await dispatchWebhookEvent(supabaseAdmin(), accountId, 'message.sent', {
+    conversation_id: conversation.id,
+    contact_id: contactId,
+    whatsapp_message_id: echo.id,
+    content_type: contentType,
+    text: contentText,
+    source: 'coex_echo',
   })
 }
 

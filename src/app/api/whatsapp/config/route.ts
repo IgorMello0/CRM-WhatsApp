@@ -6,7 +6,9 @@ import {
   subscribeWabaToApp,
   verifyPhoneNumber,
 } from '@/lib/whatsapp/meta-api'
+import { dispatchWebhookEvent } from '@/lib/webhooks/dispatcher'
 import { uazapiGetStatus } from '@/lib/whatsapp/uazapi-api'
+import { uazapiCreateInstance, uazapiSetWebhook } from '@/lib/whatsapp/uazapi-admin'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 
 /**
@@ -257,49 +259,45 @@ export async function POST(request: Request) {
 
     // ── UAZAPI provider path ──────────────────────────────────
     if (provider === 'uazapi') {
-      if (!uazapi_base_url) {
+      const globalBaseUrl = process.env.UAZAPI_GLOBAL_BASE_URL;
+      const globalAdminToken = process.env.UAZAPI_GLOBAL_ADMIN_TOKEN;
+
+      if (!globalBaseUrl || !globalAdminToken) {
         return NextResponse.json(
-          { error: 'uazapi_base_url is required for UAZAPI provider' },
-          { status: 400 },
+          { error: 'System is not configured for UAZAPI automation. Check env variables.' },
+          { status: 500 },
         )
       }
 
-      // Check for an existing row to decide insert vs update, and retrieve old token.
+      // Check for an existing row to decide insert vs update
       const { data: existing } = await supabase
         .from('whatsapp_config')
         .select('id, uazapi_instance_token')
         .eq('account_id', accountId)
         .maybeSingle()
 
-      let finalInstanceToken = uazapi_instance_token;
-      if (!finalInstanceToken) {
-        if (existing?.uazapi_instance_token) {
-          try {
-            finalInstanceToken = decrypt(existing.uazapi_instance_token)
-          } catch {
-            return NextResponse.json(
-              { error: 'Existing UAZAPI token is corrupted. Please re-enter it.' },
-              { status: 400 },
-            )
-          }
-        } else {
-          return NextResponse.json(
-            { error: 'uazapi_instance_token is required for initial UAZAPI setup' },
-            { status: 400 },
-          )
-        }
-      }
+      let finalInstanceToken = '';
+      const instanceName = `acc_${accountId.substring(0, 8)}_${Date.now()}`;
 
-      // Verify connectivity before saving
-      let uazapiStatus: Awaited<ReturnType<typeof uazapiGetStatus>>
       try {
-        uazapiStatus = await uazapiGetStatus({
-          baseUrl: uazapi_base_url,
-          instanceToken: finalInstanceToken,
-        })
+        // 1. Create instance in UAZAPI
+        const newInstance = await uazapiCreateInstance(globalBaseUrl, globalAdminToken, instanceName);
+        finalInstanceToken = newInstance.token;
+
+        // 2. Try to set webhook if we can infer the URL
+        // In production, we'd use process.env.NEXT_PUBLIC_APP_URL. 
+        // For local dev, we prefer process.env.WEBHOOK_BASE_URL, then request origin, then NEXT_PUBLIC_APP_URL.
+        const originUrl = process.env.WEBHOOK_BASE_URL || request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL;
+        if (originUrl) {
+          const webhookUrl = `${originUrl.replace(/\/$/, '')}/api/whatsapp/webhook/uazapi`;
+          await uazapiSetWebhook(globalBaseUrl, finalInstanceToken, webhookUrl);
+        } else {
+          console.warn('Could not determine origin to set UAZAPI webhook automatically.');
+        }
+
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown UAZAPI error'
-        console.error('UAZAPI connectivity check failed during save:', message)
+        console.error('UAZAPI provisioning failed:', message)
         return NextResponse.json(
           { error: `UAZAPI error: ${message}` },
           { status: 400 },
@@ -322,11 +320,9 @@ export async function POST(request: Request) {
         )
       }
 
-      const isConnected = uazapiStatus.status === 'connected'
-
       const uazapiRow = {
         provider: 'uazapi' as const,
-        uazapi_base_url,
+        uazapi_base_url: globalBaseUrl,
         uazapi_instance_token: encryptedInstanceToken,
         // Clear Meta-specific fields so they don't linger from a
         // previous provider switch.
@@ -334,8 +330,9 @@ export async function POST(request: Request) {
         access_token: null,
         waba_id: null,
         verify_token: null,
-        status: isConnected ? 'connected' : 'disconnected',
-        connected_at: isConnected ? new Date().toISOString() : null,
+        // Because it was just created, it is 'disconnected' (waiting for QR scan)
+        status: 'disconnected',
+        connected_at: null,
         registered_at: null,
         subscribed_apps_at: null,
         last_registration_error: null,
@@ -377,7 +374,7 @@ export async function POST(request: Request) {
         success: true,
         saved: true,
         provider: 'uazapi',
-        uazapi_status: uazapiStatus.status,
+        uazapi_status: 'disconnected',
       })
     }
 
