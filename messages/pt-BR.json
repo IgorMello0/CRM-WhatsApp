@@ -29,7 +29,9 @@
     "settings": "Configurações",
     "menuSignOut": "sair",
     "openAccountMenu": "Abra o menu da conta",
-    "menuSettings": "Configurações"
+    "menuSettings": "Configurações",
+    "unreadNotifications": "{count} não lidas",
+    "unreadConversations": "{count} não lidas"
   },
   "Sidebar": {
     "inbox": "Caixa de entrada",
@@ -54,8 +56,8 @@
     "roleViewer": "Visualizador",
     "defaultUser": "Usuário",
     "defaultAvatar": "avatar",
-    "unreadNotifications": "{count} não lidas {count, plural, =1 {notificação} outras {notifications}}",
-    "unreadConversations": "{count} não lidas {count, plural, =1 {conversação} outras {conversations}}"
+    "unreadNotifications": "{count} não lidas",
+    "unreadConversations": "{count} não lidas"
   },
   "ModeToggle": {
     "switchMode": "Mudar para o modo {mode}"
@@ -122,7 +124,7 @@
       "ariaLabel": "Valor do pipeline por estágio",
       "noOpenDeals": "Ainda não há negócios abertos",
       "noOpenDealsHint": "Crie negócios em Pipelines para ver os detalhamentos dos estágios aqui.",
-      "dealCount": "{count} {count, plural, =1 {negócio} outros {deals}}"
+      "dealCount": "{count} {count, plural, =1 {negócio} other {negócios}}"
     }
   },
   "Inbox": {
@@ -993,9 +995,9 @@
       "deleteConfirm": "Excluir \"{name}\"? Todas as execuções ativas terminarão imediatamente.",
       "cancel": "Cancelar",
       "edit": "Editar",
-      "nodeCount": "{count} {count, plural, =1 {nó} outros {nodes}}",
+      "nodeCount": "{count} {count, plural, =1 {nó} other {nós}}",
       "delete": "Excluir",
-      "runCount": "{count} {count, plural, =1 {run} outras {runs}}",
+      "runCount": "{count} {count, plural, =1 {execução} other {execuções}}",
       "description": "Crie conversas ramificadas no WhatsApp acionadas por botões. Útil para menus, perguntas frequentes e triagem antes da intervenção humana.",
       "startTemplate": "Comece a partir de um modelo",
       "loadError": "Não foi possível carregar os fluxos.",
@@ -1187,7 +1189,7 @@
       "modeRemove": "Remover",
       "noFile": "{label} (nenhum arquivo enviado)",
       "tagNone": "Tag {mode} (nenhuma escolhida)",
-      "options": "{count} {count, plural, =1 {opção} outras {options}}",
+      "options": "{count} {count, plural, =1 {opção} other {opções}}",
       "tagPicked": "{mode} dia {tag}…",
       "hasTag": "tem dia {tag}",
       "optionsAcrossSections": "{rowCount} {rowCount, plural, =1 {option} other {options}} em {sectionCount} {sectionCount, plural, =1 {section} other {sections}}"
@@ -1204,7 +1206,7 @@
     "overview": {
       "connected": "Conectado",
       "yourAccount": "Sua conta",
-      "membersCount": "{count} {count, plural, =1 {member} outros {members}}",
+      "membersCount": "{count} {count, plural, =1 {membro} other {membros}}",
       "loading": "Carregando…",
       "pendingReview": "{count} revisão pendente",
       "tagsAndFields": "Tags e campos personalizados",
@@ -1214,9 +1216,9 @@
       "notSetup": "Ainda não configurado",
       "viewTeamMembers": "Ver membros da equipe",
       "fieldsCount": "{count} custom {count, plural, =1 {field} other {fields}}",
-      "templatesCount": "{count} {count, plural, =1 {template} outros {templates}}",
-      "pendingInvites": "{count} pendente {count, plural, =1 {invites} outros {invites}}",
-      "tagsCount": "{count} {count, plural, =1 {tag} outras {tags}}"
+      "templatesCount": "{count} {count, plural, =1 {modelo} other {modelos}}",
+      "pendingInvites": "{count} {count, plural, =1 {convite} other {convites}} pendentes",
+      "tagsCount": "{count} {count, plural, =1 {tag} other {tags}}"
     },
     "members": {
       "title": "Membros da equipe",
@@ -1226,7 +1228,7 @@
       "description": "Pessoas com acesso a esta conta. As funções controlam o que cada colega de equipe pode fazer.",
       "offline": "off-line",
       "you": "Você",
-      "memberCount": "{count} {count, plural, =1 {member} outros {members}}",
+      "memberCount": "{count} {count, plural, =1 {membro} other {membros}}",
       "remove": "Remover",
       "unnamed": "Sem nome",
       "pendingInvitations": "Convites pendentes",
@@ -1241,8 +1243,8 @@
       "noPendingTitle": "Nenhum convite pendente.",
       "joined": "Inscreveu-se em {date}",
       "removedToast": "{name} removido",
-      "expiresInDays": "expira em {days} {days, plural, =1 {day} outros {days}}",
-      "expiresInHours": "expira em {hours} {hours, plural, =1 {hour} outras {hours}}",
+      "expiresInDays": "expira em {days} {days, plural, =1 {dia} other {dias}}",
+      "expiresInHours": "expira em {hours} {hours, plural, =1 {hora} other {horas}}",
       "inviteHint": "O URL do convite em texto simples é mostrado apenas uma vez na criação por segurança — para compartilhar novamente, revogue o convite abaixo e crie um novo.",
       "untitledInvite": "Convite sem título",
       "revokedToast": "Convite revogado",
@@ -1268,7 +1270,7 @@
       "saveLinkNow": "Salve este link agora.",
       "validForLabel": "Link válido para",
       "generateLink": "Gerar link",
-      "inviteCreatedDesc": "Compartilhe este link com seu novo companheiro de equipe. Eles poderão se inscrever (ou fazer login) e ingressar na conta como <bold>{role}</bold>. O link é válido por <bold>{days} {days, plural, =1 {day} outros {days}}</bold>.",
+      "inviteCreatedDesc": "Compartilhe este link com seu novo companheiro de equipe. Eles poderão se inscrever (ou fazer login) e ingressar na conta como <bold>{role}</bold>. O link é válido por <bold>{days} {days, plural, =1 {day} other {s}}</bold>.",
       "creating": "Criando...",
       "labelHint": "Ajuda você a lembrar para quem você enviou o link na lista de pendências abaixo.",
       "whatsappMessage": "Cadastre-se em {accountName} no wacrm usando este link (válido por {expiresInDays} dias): {url}",
@@ -1407,7 +1409,7 @@
       "toastSaveEditDry": "Modelo atualizado (ensaio - sem chamada Meta)",
       "toastSaveNewDry": "Modelo salvo (teste - sem chamada Meta)",
       "toastSubmitNewSuccess": "Enviado para Meta – o tempo típico de revisão é de 24 horas. O status é atualizado automaticamente.",
-      "toastSyncCount": "Sincronizado {total} {total, plural, =1 {template} other {templates}} do Meta",
+      "toastSyncCount": "Sincronizado {total} {total, plural, =1 {modelo} other {modelos}} do Meta",
       "toastSyncFailed": "Falha ao sincronizar: {preview}",
       "toastDeleteError": "Falha ao excluir modelo",
       "toastSyncDetails": "({inserted} novo, {updated} atualizado)",
@@ -1687,5 +1689,7 @@
       "reindexTooltip": "Incorpore novamente todos os documentos (por exemplo, após adicionar uma chave de incorporação)",
       "editDocContentPlaceholder": "Cole a resposta do FAQ, o texto da política ou os detalhes do produto…"
     }
-  }
+  },
+  "unreadNotifications": "{count} não lidas",
+  "unreadConversations": "{count} não lidas"
 }
