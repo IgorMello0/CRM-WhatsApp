@@ -745,7 +745,7 @@
         "imageUrlPlaceholder": "https://example.com/image.jpg",
         "previewSample": "Mostrando visualização com dados de amostra.",
         "headerImageDesc": "Este modelo requer uma imagem de cabeçalho.",
-        "varDesc": "Definir valores para {{name}}"
+        "varDesc": "Definir valores para '{{name}}'"
       },
       "scheduleSend": {
         "title": "Revise e envie",
@@ -971,9 +971,9 @@
         },
         "placeholderTime": "HH:mm-HH:mm",
         "placeholderMessageText": "Oi! Obrigado por entrar em contato…",
-        "placeholderBody": "{\"id\": \"{{ contact.id }}\"}",
+        "placeholderBody": "{\"id\": \"'{{ contact.id }}'\"}",
         "placeholderHeaders": "{\"Authorization\": \"Bearer ...\"}",
-        "placeholderValue": "Texto ou {{ vars.x }} / {{ message.text }}",
+        "placeholderValue": "Texto ou '{{ vars.x }}' / '{{ message.text }}'",
         "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária."
       }
     }
@@ -1366,8 +1366,8 @@
       "editTitle": "A edição aciona a nova revisão do Meta – o status muda para PENDENTE.",
       "imageHint": "Carregue um JPEG/PNG (≤5 MB, ≥800×418 px recomendado) ou cole um link HTTPS público – nós o carregamos no Meta para revisão automaticamente.",
       "mediaUrlPlaceholder": "https://… (ou cole um link público {format})",
-      "bodyPlaceholder": "Olá {{1}}, seu pedido {{2}} está confirmado.",
-      "headerSamplePlaceholder": "Valor de amostra para {{1}} (obrigatório para revisão Meta)",
+      "bodyPlaceholder": "Olá '{{1}}', seu pedido '{{2}}' está confirmado.",
+      "headerSamplePlaceholder": "Valor de amostra para '{{1}}' (obrigatório para revisão Meta)",
       "videoHint": "Recomendado: MP4/3GPP, ≤16 MB, ≤60 segundos.",
       "uploadHint": "JPEG ou PNG, ≤5 MB",
       "addButton": "Adicionar botão",
@@ -1375,7 +1375,7 @@
       "documentHint": "Recomendado: PDF, ≤100 MB.",
       "headerSampleAria": "Valor de amostra para variável de cabeçalho",
       "mediaHint": "Deve ser um link HTTPS acessível publicamente. Meta o busca uma vez durante a revisão, então ele precisa permanecer ativo por aproximadamente 24 horas.",
-      "headerTextPlaceholder": "Texto do cabeçalho (máximo de 60 caracteres, opcional {{1}})",
+      "headerTextPlaceholder": "Texto do cabeçalho (máximo de 60 caracteres, opcional '{{1}}')",
       "btnPhone": "Telefone",
       "btnUrl": "URL",
       "btnLabelPlaceholder": "Etiqueta do botão",
@@ -1394,12 +1394,12 @@
       "saveResubmit": "Salvar e reenviar",
       "toastSubmitFailed": "Falha ao enviar",
       "buttonsLimit": "Até botões {max}. Os botões QUICK_REPLY devem vir antes dos botões URL/telefone/cópia de código.",
-      "bodyHint": "Use {{1}}, {{2}} para variáveis ​​(devem ser contíguas começando em {{1}}).",
+      "bodyHint": "Use '{{1}}', '{{2}}' para variáveis ​​(devem ser contíguas começando em '{{1}}').",
       "sampleValues": "Valores de amostra (Meta os usa para revisar seu modelo)",
       "deleteMetaDesc": "\"{name}\" será excluído do Meta e do wacrm. As transmissões ativas que usam este modelo começarão a falhar no próximo envio. Isso não pode ser desfeito.",
-      "urlPlaceholder": "https://example.com/path ou com sufixo {{1}}",
+      "urlPlaceholder": "https://example.com/path ou com sufixo '{{1}}'",
       "toastSubmitEditSuccess": "Edição enviada – Meta normalmente é revisada em 24 horas.",
-      "urlSamplePlaceholder": "Valor de exemplo para {{1}} (obrigatório quando o URL tem uma variável)",
+      "urlSamplePlaceholder": "Valor de exemplo para '{{1}}' (obrigatório quando o URL tem uma variável)",
       "deleteLocalDesc": "\"{name}\" será excluído do wacrm. Ele nunca foi enviado ao Meta, portanto, nenhuma limpeza remota é necessária.",
       "codePlaceholder": "Código de exemplo (por exemplo, SUMMER20)",
       "sampleAria": "Valor de amostra para variável de corpo {var}",
