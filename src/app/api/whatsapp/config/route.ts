@@ -6,7 +6,7 @@ import {
   subscribeWabaToApp,
   verifyPhoneNumber,
 } from '@/lib/whatsapp/meta-api'
-import { dispatchWebhookEvent } from '@/lib/webhooks/dispatcher'
+
 import { uazapiGetStatus } from '@/lib/whatsapp/uazapi-api'
 import { uazapiCreateInstance, uazapiSetWebhook } from '@/lib/whatsapp/uazapi-admin'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'

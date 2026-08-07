@@ -168,6 +168,8 @@ export interface Conversation {
   unread_count: number;
   created_at: string;
   updated_at: string;
+  /** Platform this conversation belongs to. Defaults to 'whatsapp'. */
+  platform?: Platform;
   contact?: Contact;
   /**
    * AI auto-reply state for this thread (migration 029 + 033):
@@ -649,6 +651,66 @@ export interface QuickReply {
   content_text?: string | null;
   /** Set when `kind === 'interactive'`. */
   interactive_payload?: InteractiveMessagePayload | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
+// Instagram integration (migration 038)
+// ============================================================
+
+export type Platform = 'whatsapp' | 'instagram';
+
+export interface InstagramConfig {
+  id: string;
+  user_id: string;
+  account_id: string;
+  ig_account_id?: string;
+  fb_page_id?: string;
+  fb_page_name?: string;
+  ig_username?: string;
+  access_token?: string;
+  token_expires_at?: string;
+  status: 'connected' | 'disconnected';
+  connected_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstagramCommentAutomation {
+  id: string;
+  account_id: string;
+  user_id: string;
+  name: string;
+  keywords: string[];
+  match_type: 'exact' | 'contains';
+  case_sensitive: boolean;
+  reply_message: string;
+  comment_reply_text?: string;
+  post_ids?: string[];
+  is_active: boolean;
+  execution_count: number;
+  last_executed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type InstagramPostStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
+export type InstagramMediaType = 'image' | 'video' | 'carousel' | 'reel';
+
+export interface InstagramPost {
+  id: string;
+  account_id: string;
+  user_id: string;
+  ig_media_id?: string;
+  media_type: InstagramMediaType;
+  media_url: string;
+  caption?: string;
+  permalink?: string;
+  status: InstagramPostStatus;
+  scheduled_at?: string;
+  published_at?: string;
+  error_message?: string;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,5 @@
 import { resolveProvider, type ProviderConfig } from '@/lib/whatsapp/provider-resolver'
+import type { InteractiveMessagePayload } from '@/types'
 import {
   engineSendInteractiveButtons,
   engineSendInteractiveList,

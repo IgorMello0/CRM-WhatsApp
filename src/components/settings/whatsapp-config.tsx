@@ -230,7 +230,7 @@ export function WhatsAppConfig() {
           if (!config.access_token) {
             toast.error('Please re-enter the Access Token to save changes');
             setSaving(false);
-            return;
+            return false;
           }
         }
       } else {
