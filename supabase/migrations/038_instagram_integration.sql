@@ -49,12 +49,12 @@ ALTER TABLE public.instagram_config ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view instagram config for their accounts" ON public.instagram_config;
 CREATE POLICY "Users can view instagram config for their accounts"
     ON public.instagram_config FOR SELECT
-    USING (EXISTS (SELECT 1 FROM public.account_members am WHERE am.account_id = instagram_config.account_id AND am.user_id = auth.uid()));
+    USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.account_id = instagram_config.account_id AND p.id = auth.uid()));
 
 DROP POLICY IF EXISTS "Users can manage instagram config for their accounts" ON public.instagram_config;
 CREATE POLICY "Users can manage instagram config for their accounts"
     ON public.instagram_config FOR ALL
-    USING (EXISTS (SELECT 1 FROM public.account_members am WHERE am.account_id = instagram_config.account_id AND am.user_id = auth.uid()));
+    USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.account_id = instagram_config.account_id AND p.id = auth.uid()));
 
 -- ==========================================
 -- 4. Create instagram_comment_automations table
@@ -82,12 +82,12 @@ ALTER TABLE public.instagram_comment_automations ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view instagram comment automations for their accounts" ON public.instagram_comment_automations;
 CREATE POLICY "Users can view instagram comment automations for their accounts"
     ON public.instagram_comment_automations FOR SELECT
-    USING (EXISTS (SELECT 1 FROM public.account_members am WHERE am.account_id = instagram_comment_automations.account_id AND am.user_id = auth.uid()));
+    USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.account_id = instagram_comment_automations.account_id AND p.id = auth.uid()));
 
 DROP POLICY IF EXISTS "Users can manage instagram comment automations for their accounts" ON public.instagram_comment_automations;
 CREATE POLICY "Users can manage instagram comment automations for their accounts"
     ON public.instagram_comment_automations FOR ALL
-    USING (EXISTS (SELECT 1 FROM public.account_members am WHERE am.account_id = instagram_comment_automations.account_id AND am.user_id = auth.uid()));
+    USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.account_id = instagram_comment_automations.account_id AND p.id = auth.uid()));
 
 -- ==========================================
 -- 5. Create instagram_posts table
@@ -114,12 +114,12 @@ ALTER TABLE public.instagram_posts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view instagram posts for their accounts" ON public.instagram_posts;
 CREATE POLICY "Users can view instagram posts for their accounts"
     ON public.instagram_posts FOR SELECT
-    USING (EXISTS (SELECT 1 FROM public.account_members am WHERE am.account_id = instagram_posts.account_id AND am.user_id = auth.uid()));
+    USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.account_id = instagram_posts.account_id AND p.id = auth.uid()));
 
 DROP POLICY IF EXISTS "Users can manage instagram posts for their accounts" ON public.instagram_posts;
 CREATE POLICY "Users can manage instagram posts for their accounts"
     ON public.instagram_posts FOR ALL
-    USING (EXISTS (SELECT 1 FROM public.account_members am WHERE am.account_id = instagram_posts.account_id AND am.user_id = auth.uid()));
+    USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.account_id = instagram_posts.account_id AND p.id = auth.uid()));
 
 -- ==========================================
 -- Triggers for updated_at
