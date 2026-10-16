@@ -118,6 +118,7 @@
     "titleAccept": "Faça login para aceitar"
   },
   "Header": {
+    "documents": "Documentos",
     "dashboard": "Painel",
     "inbox": "Caixa de entrada",
     "notifications": "Notificações",
@@ -125,7 +126,7 @@
     "broadcasts": "Transmissões",
     "defaultAvatar": "avatar",
     "automations": "Automações",
-    "pipelines": "Gasodutos",
+      "pipelines": "Funil de vendas",
     "openMenu": "Abrir menu",
     "defaultUser": "Usuário",
     "menuProfile": "Perfil",
@@ -137,9 +138,10 @@
     "unreadConversations": "{count} não lidas"
   },
   "Sidebar": {
+    "documents": "Documentos",
     "inbox": "Caixa de entrada",
     "dashboard": "Painel",
-    "pipelines": "Gasodutos",
+      "pipelines": "Funil de vendas",
     "notifications": "Notificações",
     "broadcasts": "Transmissões",
     "contacts": "Contatos",
@@ -1609,6 +1611,8 @@
       "fields": "Campos e tags",
       "templates": "Modelos",
       "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "signature": "Assinatura de documentos",
       "appearance": "Aparência",
       "members": "Membros da equipe",
       "api": "Chaves de API",

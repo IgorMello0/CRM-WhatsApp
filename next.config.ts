@@ -70,6 +70,9 @@ const canonicalCwd = typeof fs.realpathSync.native === "function"
   : fs.realpathSync(process.cwd());
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    '/api/documents{,/**}': ['node_modules/@fontsource/roboto/files/roboto-latin-{400,700}-normal.woff'],
+  },
   webpack(config) {
     config.context = canonicalCwd;
     return config;

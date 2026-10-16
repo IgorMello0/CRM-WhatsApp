@@ -118,6 +118,7 @@
     "createAccount": "Create account"
   },
   "Sidebar": {
+    "documents": "Documents",
     "title": "CRM Template for WhatsApp",
     "dashboard": "Dashboard",
     "inbox": "Inbox",
@@ -149,6 +150,7 @@
     "igAutomations": "IG Automations"
   },
   "Header": {
+    "documents": "Documents",
     "dashboard": "Dashboard",
     "inbox": "Inbox",
     "notifications": "Notifications",
@@ -1603,6 +1605,8 @@
       "security": "Login & security",
       "appearance": "Appearance",
       "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "signature": "Document signature",
       "templates": "Templates",
       "fields": "Fields & tags",
       "deals": "Deals & currency",
