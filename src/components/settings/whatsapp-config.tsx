@@ -38,6 +38,22 @@ const MASKED_TOKEN = '••••••••••••••••';
 type ConnectionStatus = 'connected' | 'disconnected' | 'unknown';
 type ResetReason = 'token_corrupted' | 'meta_api_error' | null;
 
+type FacebookWindow = Window & {
+  fbAsyncInit?: () => void;
+  FB?: {
+    init: (options: {
+      appId: string;
+      cookie: boolean;
+      xfbml: boolean;
+      version: string;
+    }) => void;
+    login: (
+      callback: (response: { authResponse?: { accessToken: string } }) => void,
+      options: { scope: string; extras: { setup: Record<string, never> } }
+    ) => void;
+  };
+};
+
 export function WhatsAppConfig() {
   const t = useTranslations('Settings.whatsapp');
   const supabase = createClient();
@@ -102,6 +118,69 @@ export function WhatsAppConfig() {
     typeof window !== 'undefined'
       ? `${window.location.origin}/api/whatsapp/webhook`
       : '';
+
+  useEffect(() => {
+    // Load FB SDK
+    const facebookWindow = window as FacebookWindow;
+    if (!facebookWindow.FB) {
+      facebookWindow.fbAsyncInit = function() {
+        facebookWindow.FB?.init({
+          appId      : process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '',
+          cookie     : true,
+          xfbml      : true,
+          version    : 'v21.0'
+        });
+      };
+
+      (function(d, s, id){
+         const fjs = d.getElementsByTagName(s)[0];
+         if (d.getElementById(id)) {return;}
+         const js = d.createElement(s) as HTMLScriptElement; js.id = id;
+         js.src = "https://connect.facebook.net/en_US/sdk.js";
+         fjs.parentNode?.insertBefore(js, fjs);
+       }(document, 'script', 'facebook-jssdk'));
+    }
+  }, []);
+
+  const handleFacebookLogin = () => {
+    const facebook = (window as FacebookWindow).FB;
+    if (!facebook) {
+      toast.error('O SDK do Facebook ainda não foi carregado. Tente novamente em alguns segundos.');
+      return;
+    }
+
+    facebook.login(async (response) => {
+      if (response.authResponse) {
+        const token = response.authResponse.accessToken;
+
+        setSaving(true);
+        try {
+          const res = await fetch('/api/whatsapp/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: token }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Falha ao autenticar com a Meta');
+          }
+
+          toast.success('WhatsApp conectado com sucesso via Meta!');
+          if (accountId) fetchConfig(accountId);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Falha ao autenticar com a Meta');
+        } finally {
+          setSaving(false);
+        }
+      } else {
+        toast.info('Login cancelado ou não autorizado.');
+      }
+    }, {
+      scope: 'whatsapp_business_management,whatsapp_business_messaging',
+      extras: { setup: {} }
+    });
+  };
 
   const fetchConfig = useCallback(async (acctId: string) => {
     setLoading(true);
@@ -626,104 +705,139 @@ export function WhatsAppConfig() {
 
         {provider === 'meta' ? (
           <>
-            {/* API Credentials */}
+            <div className="space-y-4">
+            {/* Meta Official Connection */}
             <Card>
               <CardHeader>
-            <CardTitle className="text-foreground">{t('apiCredentialsTitle')}</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              {t('apiCredentialsDesc')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">{t('phoneNumberId')}</Label>
-              <Input
-                placeholder="e.g. 100234567890123"
-                value={phoneNumberId}
-                onChange={(e) => setPhoneNumberId(e.target.value)}
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">{t('wabaId')}</Label>
-              <Input
-                placeholder="e.g. 100234567890456"
-                value={wabaId}
-                onChange={(e) => setWabaId(e.target.value)}
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">{t('accessToken')}</Label>
-              <div className="relative">
-                <Input
-                  type={showToken ? 'text' : 'password'}
-                  placeholder={t('accessTokenPlaceholder')}
-                  value={accessToken}
-                  onChange={(e) => {
-                    setAccessToken(e.target.value);
-                    setTokenEdited(true);
-                  }}
-                  onFocus={() => {
-                    if (accessToken === MASKED_TOKEN) {
-                      setAccessToken('');
-                      setTokenEdited(true);
-                    }
-                  }}
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowToken(!showToken)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                <CardTitle className="text-foreground">Conexão Oficial (Meta)</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Vincule seu número lendo o QR Code pelo aplicativo do WhatsApp Business.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button
+                  onClick={handleFacebookLogin}
+                  disabled={saving || loading}
+                  className="w-full bg-[#1877F2] hover:bg-[#0c63d4] text-white"
                 >
-                  {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-              {config && !tokenEdited && (
-                <p className="text-xs text-muted-foreground">
-                  {t('tokenHidden')}
+                  {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                  Conectar com o Facebook
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Você precisará do seu celular com o WhatsApp Business aberto para ler o QR Code durante o processo.
                 </p>
-              )}
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">{t('webhookVerifyToken')}</Label>
-              <Input
-                placeholder={t('webhookVerifyTokenPlaceholder')}
-                value={verifyToken}
-                onChange={(e) => setVerifyToken(e.target.value)}
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('webhookVerifyTokenHint')}
-              </p>
-            </div>
+            <Accordion className="w-full">
+              <AccordionItem value="advanced-config" className="border-border">
+                <AccordionTrigger className="text-foreground hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    Configurações Avançadas (Manual)
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <Card className="border-border mt-4">
+                    <CardHeader>
+                      <CardTitle className="text-foreground">Credenciais da API</CardTitle>
+                      <CardDescription className="text-muted-foreground">
+                        Apenas preencha se você quiser usar um App próprio ou ignorar o login automático.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">{t('phoneNumberId')}</Label>
+                        <Input
+                          placeholder="e.g. 100234567890123"
+                          value={phoneNumberId}
+                          onChange={(e) => setPhoneNumberId(e.target.value)}
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                        />
+                      </div>
 
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">
-                {t('twoStepPin')}
-                <span className="ml-1 text-muted-foreground">{t('optional')}</span>
-              </Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder={t('pinPlaceholder')}
-                value={pin}
-                onChange={(e) =>
-                  setPin(e.target.value.replace(/\D/g, '').slice(0, 6))
-                }
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground tracking-widest"
-              />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <span dangerouslySetInnerHTML={{ __html: t.raw('pinHint') }} />
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">{t('wabaId')}</Label>
+                        <Input
+                          placeholder="e.g. 100234567890456"
+                          value={wabaId}
+                          onChange={(e) => setWabaId(e.target.value)}
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">{t('accessToken')}</Label>
+                        <div className="relative">
+                          <Input
+                            type={showToken ? 'text' : 'password'}
+                            placeholder={t('accessTokenPlaceholder')}
+                            value={accessToken}
+                            onChange={(e) => {
+                              setAccessToken(e.target.value);
+                              setTokenEdited(true);
+                            }}
+                            onFocus={() => {
+                              if (accessToken === MASKED_TOKEN) {
+                                setAccessToken('');
+                                setTokenEdited(true);
+                              }
+                            }}
+                            className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowToken(!showToken)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </button>
+                        </div>
+                        {config && !tokenEdited && (
+                          <p className="text-xs text-muted-foreground">
+                            {t('tokenHidden')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">{t('webhookVerifyToken')}</Label>
+                        <Input
+                          placeholder={t('webhookVerifyTokenPlaceholder')}
+                          value={verifyToken}
+                          onChange={(e) => setVerifyToken(e.target.value)}
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t('webhookVerifyTokenHint')}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">
+                          {t('twoStepPin')}
+                          <span className="ml-1 text-muted-foreground">{t('optional')}</span>
+                        </Label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder={t('pinPlaceholder')}
+                          value={pin}
+                          onChange={(e) =>
+                            setPin(e.target.value.replace(/\D/g, '').slice(0, 6))
+                          }
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground tracking-widest"
+                        />
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          <span dangerouslySetInnerHTML={{ __html: t.raw('pinHint') }} />
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
 
         {/* Webhook URL */}
         <Card>

@@ -153,7 +153,8 @@ export async function renderPdf(
   snapshot: DocumentSnapshot,
   source?: Uint8Array,
   signature?: DocumentSignature,
-  documentId?: string
+  documentId?: string,
+  options: { flattenForms?: boolean } = {}
 ): Promise<Uint8Array> {
   const pdf =
     snapshot.kind === 'pdf' && source
@@ -306,8 +307,9 @@ export async function renderPdf(
         })
       );
     }
-    // The signed copy is static; the private original and draft history remain editable.
-    if (signature) {
+    // Signed copies and transient browser previews are static. The private
+    // original and saved draft history remain editable.
+    if (signature || options.flattenForms) {
       const widgets = new Set<string>();
       for (const page of pdf.getPages())
         for (const entry of page.node.Annots()?.asArray() ?? []) {

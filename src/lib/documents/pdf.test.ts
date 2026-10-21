@@ -194,6 +194,13 @@ describe('document PDF output', () => {
     expect(draft.getForm().getDropdown('Plano').getSelected()).toEqual([
       'Completo',
     ]);
+    const preview = await PDFDocument.load(
+      await renderPdf(snapshot, source, undefined, undefined, {
+        flattenForms: true,
+      })
+    );
+    expect(preview.getForm().getFields()).toHaveLength(0);
+    expect(preview.getPages()[0].node.Annots()?.size() ?? 0).toBe(0);
     const signed = await renderPdf(snapshot, source, signature, 'test-pdf');
     const final = await PDFDocument.load(signed);
     expect(final.catalog.has(PDFName.of('AcroForm'))).toBe(false);

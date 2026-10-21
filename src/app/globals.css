@@ -1,15 +1,15 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-body);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -61,33 +61,47 @@
  * THEMING — two orthogonal dimensions
  *
  *   1. MODE   (light / dark)  → neutral surfaces. Selected with
- *      `document.documentElement.dataset.mode`. Defaults to dark.
- *   2. ACCENT (violet / …)    → the primary color only. Selected
+ *      `document.documentElement.dataset.mode`. Defaults to light.
+ *   2. THEME (kay-laser / …)  → brand colors and typography. Selected
  *      with `document.documentElement.dataset.theme`.
  *
- * The two compose: any accent works in either mode. Neutral
+ * The two compose: any theme works in either mode. Neutral
  * tokens (background / card / border / muted / sidebar surfaces /
  * neutral charts / radius) live in the MODE blocks below; accent
  * tokens (--primary*, --ring, --chart-1, --sidebar-primary*,
  * --sidebar-ring) live in the ACCENT blocks. They set disjoint
- * variables, so cascade order between them doesn't matter.
+ * variables. Kay Laser additionally overrides surfaces and fonts.
  *
- * `:root` carries the dark-mode + violet defaults so a visitor
- * renders correctly before JS runs; the boot script in
+ * The root layout supplies the Kay Laser + light defaults before
+ * JS runs; the boot script in
  * layout.tsx replays the saved mode + accent before first paint.
  *
  * The three `--primary-*` extras (hover / soft / soft-2) feed
  * hovered primary buttons and tinted-primary surfaces (sidebar
  * active pill, validation badges).
  *
- * Token shapes come straight from the design handoff at
- * project/Color Themes.html — change one, change the other.
  * ============================================================ */
+
+:root {
+  --font-body: var(--font-inter), sans-serif;
+  --font-display: var(--font-inter), sans-serif;
+  --primary-text: var(--primary);
+  --chart-incoming: #3b82f6;
+  --chart-outgoing: #7c3aed;
+}
+
+/* Pastel fills need a separate, readable text color, including variants
+ * such as hover:text-primary. Other themes retain their primary color. */
+@utility text-primary {
+  [data-theme='kay-laser'] & {
+    color: var(--primary-text);
+  }
+}
 
 /* ---- MODE: neutral surfaces ---- */
 
-:root,
-html[data-mode="dark"] {
+html[data-mode='dark'] {
+  color-scheme: dark;
   --background: oklch(0.13 0.01 260);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.18 0.01 260);
@@ -116,7 +130,9 @@ html[data-mode="dark"] {
   --sidebar-border: oklch(0.28 0.01 260);
 }
 
-html[data-mode="light"] {
+:root,
+html[data-mode='light'] {
+  color-scheme: light;
   --background: oklch(0.99 0.002 260);
   --foreground: oklch(0.21 0.01 260);
   --card: oklch(1 0 0);
@@ -147,8 +163,7 @@ html[data-mode="light"] {
 
 /* ---- ACCENT: primary color ---- */
 
-:root,
-html[data-theme="violet"] {
+html[data-theme='violet'] {
   --primary: oklch(0.526 0.247 293);
   --primary-foreground: oklch(0.985 0 0);
   --primary-hover: oklch(0.6 0.22 293);
@@ -161,7 +176,7 @@ html[data-theme="violet"] {
   --sidebar-ring: oklch(0.526 0.247 293);
 }
 
-html[data-theme="emerald"] {
+html[data-theme='emerald'] {
   --primary: oklch(0.62 0.16 162);
   --primary-foreground: oklch(0.16 0.02 162);
   --primary-hover: oklch(0.68 0.15 162);
@@ -175,7 +190,7 @@ html[data-theme="emerald"] {
   --sidebar-ring: oklch(0.62 0.16 162);
 }
 
-html[data-theme="cobalt"] {
+html[data-theme='cobalt'] {
   --primary: oklch(0.585 0.2 254);
   --primary-foreground: oklch(0.985 0 0);
   --primary-hover: oklch(0.66 0.18 254);
@@ -189,7 +204,7 @@ html[data-theme="cobalt"] {
   --sidebar-ring: oklch(0.585 0.2 254);
 }
 
-html[data-theme="amber"] {
+html[data-theme='amber'] {
   --primary: oklch(0.745 0.16 65);
   --primary-foreground: oklch(0.18 0.03 65);
   --primary-hover: oklch(0.8 0.15 65);
@@ -203,7 +218,7 @@ html[data-theme="amber"] {
   --sidebar-ring: oklch(0.745 0.16 65);
 }
 
-html[data-theme="rose"] {
+html[data-theme='rose'] {
   --primary: oklch(0.645 0.22 16);
   --primary-foreground: oklch(0.985 0 0);
   --primary-hover: oklch(0.71 0.2 16);
@@ -217,6 +232,84 @@ html[data-theme="rose"] {
   --sidebar-ring: oklch(0.645 0.22 16);
 }
 
+/* Kay Laser — warm surfaces, nude actions and a soft blue secondary. */
+:root:not([data-theme]),
+html[data-theme='kay-laser'] {
+  --font-body: var(--font-open-sans), sans-serif;
+  --font-display: var(--font-playfair), Georgia, serif;
+  --background: #faf7f2;
+  --foreground: #594842;
+  --card: #ffffff;
+  --card-2: #f7f0eb;
+  --card-foreground: #594842;
+  --popover: #ffffff;
+  --popover-foreground: #594842;
+  --primary: #d7b6b1;
+  --primary-foreground: #4b3c37;
+  --primary-text: #76534f;
+  --primary-hover: #dfc4be;
+  --primary-soft: #d7b6b133;
+  --primary-soft-2: #d7b6b14d;
+  --secondary: #afdceb;
+  --secondary-foreground: #304f5a;
+  --muted: #f1e9e3;
+  --muted-foreground: #78655f;
+  --accent: #edf6f9;
+  --accent-foreground: #304f5a;
+  --destructive: #b13f42;
+  --border: #e6dcd5;
+  --input: #98807a;
+  --ring: #98807a;
+  --chart-1: #98807a;
+  --chart-2: #afdceb;
+  --chart-3: #d7b6b1;
+  --chart-4: #739ba5;
+  --chart-5: #baa58b;
+  --chart-incoming: #739ba5;
+  --chart-outgoing: #98807a;
+  --sidebar: #f7f0eb;
+  --sidebar-foreground: #594842;
+  --sidebar-accent: #eeded9;
+  --sidebar-accent-foreground: #594842;
+  --sidebar-primary: #d7b6b1;
+  --sidebar-primary-foreground: #4b3c37;
+  --sidebar-border: #e6dcd5;
+  --sidebar-ring: #98807a;
+}
+
+html[data-theme='kay-laser'][data-mode='dark'] {
+  --background: #211c1a;
+  --foreground: #faf7f2;
+  --card: #2b2422;
+  --card-2: #342b28;
+  --card-foreground: #faf7f2;
+  --popover: #2b2422;
+  --popover-foreground: #faf7f2;
+  --primary-text: #dfc4be;
+  --primary-soft: #d7b6b11f;
+  --primary-soft-2: #d7b6b133;
+  --secondary: #293c42;
+  --secondary-foreground: #afdceb;
+  --muted: #382f2b;
+  --muted-foreground: #c2ada4;
+  --accent: #293c42;
+  --accent-foreground: #afdceb;
+  --destructive: #f28b8d;
+  --border: #51413b;
+  --input: #a58b81;
+  --ring: #d7b6b1;
+  --chart-1: #d7b6b1;
+  --chart-3: #b39890;
+  --chart-incoming: #afdceb;
+  --chart-outgoing: #d7b6b1;
+  --sidebar: #27201e;
+  --sidebar-foreground: #faf7f2;
+  --sidebar-accent: #44332e;
+  --sidebar-accent-foreground: #faf7f2;
+  --sidebar-border: #51413b;
+  --sidebar-ring: #d7b6b1;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -226,5 +319,9 @@ html[data-theme="rose"] {
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2 {
+    @apply font-heading;
   }
 }

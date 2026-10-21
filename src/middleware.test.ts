@@ -40,7 +40,7 @@ const { middleware } = await import("./middleware");
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "publishable-key";
   mockUser = null;
   refreshedCookies = [];
 });

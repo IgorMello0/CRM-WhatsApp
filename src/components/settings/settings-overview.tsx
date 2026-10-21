@@ -174,6 +174,11 @@ export function SettingsOverview({
       ),
     },
     {
+      section: 'instagram',
+      loading: false,
+      subtitle: t('notSetup') // Simple fallback for now
+    },
+    {
       section: 'members',
       loading: countsLoading,
       subtitle:

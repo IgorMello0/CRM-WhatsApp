@@ -32,7 +32,13 @@ export async function POST(
     );
     if (snapshot.kind !== doc.snapshot.kind)
       throw new DocumentError('Tipo inválido.');
-    const bytes = await renderPdf(snapshot, await original(doc));
+    const bytes = await renderPdf(
+      snapshot,
+      await original(doc),
+      undefined,
+      undefined,
+      { flattenForms: true }
+    );
     return new Response(Buffer.from(bytes), {
       headers: {
         'Content-Type': 'application/pdf',

@@ -219,7 +219,7 @@ export default function InstagramInboxPage() {
             <p className="text-xs text-rose-500 hidden sm:block">
               {t("connectionWarningDesc")}
             </p>
-            <a href="/settings/channels" className="text-xs text-rose-700 underline font-semibold ml-2">
+            <a href="/settings?tab=instagram" className="text-xs text-rose-700 underline font-semibold ml-2">
               {t("goToSettings")}
             </a>
           </div>

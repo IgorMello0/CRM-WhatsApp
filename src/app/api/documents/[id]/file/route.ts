@@ -42,7 +42,13 @@ export async function GET(
             doc.signed_path,
             doc.signed_sha256
           )
-        : await renderPdf(snapshot, await original(doc));
+        : await renderPdf(
+            snapshot,
+            await original(doc),
+            undefined,
+            undefined,
+            { flattenForms: search.get('preview') === '1' }
+          );
     const filename = `${snapshot.title.replace(/[^a-zA-Z0-9_-]/g, '_')}-v${requestedRevision}.pdf`;
     return new Response(Buffer.from(bytes), {
       headers: {

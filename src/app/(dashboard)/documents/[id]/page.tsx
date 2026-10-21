@@ -27,6 +27,12 @@ import {
   emptySigning,
 } from '@/components/documents/signing-controls';
 import { constrainPlacement } from '@/lib/documents/placement';
+import {
+  formatPdfFieldValue,
+  formatStoredPdfFields,
+  pdfFieldFormat,
+  pdfFieldInputProps,
+} from '@/lib/documents/field-format';
 import { ReuseDocumentDialog } from '@/components/documents/reuse-document-dialog';
 import { assertReadyDocument } from '@/lib/documents/templates';
 import {
@@ -74,11 +80,16 @@ export default function DocumentEditor({
         setStep('edit');
         setPlacing(null);
         setSignOpen(false);
+        const snapshot = body.document.snapshot;
         setDraft(
-          body.document.status === 'draft' &&
-            body.document.snapshot.kind === 'text'
-            ? { ...body.document.snapshot, layoutVersion: 2 }
-            : body.document.snapshot
+          body.document.status === 'draft' && snapshot.kind === 'text'
+            ? { ...snapshot, layoutVersion: 2 }
+            : body.document.status === 'draft' && snapshot.kind === 'pdf'
+              ? {
+                  ...snapshot,
+                  fields: formatStoredPdfFields(snapshot.fields),
+                }
+              : snapshot
         );
         setFields(body.pdf?.fields ?? []);
         setPageCount(body.pdf?.pages ?? 1);
@@ -488,7 +499,7 @@ export default function DocumentEditor({
                             ) : (
                               <Input
                                 disabled={!editable}
-                                maxLength={5000}
+                                {...pdfFieldInputProps(field.name)}
                                 value={String(
                                   draft.fields[field.name] ?? field.value
                                 )}
@@ -497,10 +508,36 @@ export default function DocumentEditor({
                                     ...draft,
                                     fields: {
                                       ...draft.fields,
-                                      [field.name]: event.target.value,
+                                      [field.name]: formatPdfFieldValue(
+                                        field.name,
+                                        event.target.value
+                                      ),
                                     },
                                   })
                                 }
+                                onBlur={(event) => {
+                                  if (
+                                    pdfFieldFormat(field.name) !== 'currency'
+                                  ) {
+                                    return;
+                                  }
+                                  const value = formatPdfFieldValue(
+                                    field.name,
+                                    event.target.value,
+                                    true
+                                  );
+                                  setDraft((current) =>
+                                    current?.kind === 'pdf'
+                                      ? {
+                                          ...current,
+                                          fields: {
+                                            ...current.fields,
+                                            [field.name]: value,
+                                          },
+                                        }
+                                      : current
+                                  );
+                                }}
                               />
                             )}
                           </label>
@@ -650,7 +687,7 @@ export default function DocumentEditor({
           </h2>
           <PdfPreview
             key={step}
-            url={`/api/documents/${id}/file?revision=${doc.revision}`}
+            url={`/api/documents/${id}/file?revision=${doc.revision}&preview=1`}
             onReviewed={setHash}
             onPageCount={setPageCount}
             previewUrl={`/api/documents/${id}/preview`}
